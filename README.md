@@ -13,6 +13,7 @@
 </p>
 
 <p align="center">
+  <a href="#截图">截图</a> ·
   <a href="#功能亮点">功能亮点</a> ·
   <a href="#安装">安装</a> ·
   <a href="#系统要求">系统要求</a> ·
@@ -24,6 +25,20 @@
   <img alt="swift" src="https://img.shields.io/badge/Swift-6-orange?logo=swift">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue">
 </p>
+
+## 截图
+
+| 深色 | 浅色 |
+| --- | --- |
+| ![深色面板](docs/images/panel-dark.png) | ![浅色面板](docs/images/panel-light.png) |
+
+悬停某块 GPU，弹出该卡上的计算进程、占用用户与显存：
+
+<p align="center">
+  <img src="docs/images/processes.png" width="480" alt="GPU 进程弹窗">
+</p>
+
+> 以上为演示示例，主机名 / 用户名 / 占用数据均为虚构。
 
 ## 功能亮点
 
