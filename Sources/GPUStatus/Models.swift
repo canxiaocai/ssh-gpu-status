@@ -6,11 +6,25 @@ struct GPUProcess: Identifiable, Sendable, Hashable {
     let user: String        // 占用用户（远程 ps 解析，未知为 "?"）
     let memoryUsed: Int     // 占用显存 MiB
     let name: String        // 进程名（可能是完整路径）
+    let elapsedSeconds: Int? // 已运行时间（远程 ps etimes，单位秒；老旧 ps 不支持时为 nil）
 
     var id: Int { pid }
 
     /// 进程名的最后一段（去掉路径），用于窄面板展示。
     var shortName: String { (name as NSString).lastPathComponent }
+
+    /// 已运行时间的紧凑文本，如 "3天5小时"、"5小时12分"、"12分30秒"、"30秒"；无数据为 nil。
+    var runtimeText: String? {
+        guard let s = elapsedSeconds, s >= 0 else { return nil }
+        let day = s / 86400
+        let hour = (s % 86400) / 3600
+        let minute = (s % 3600) / 60
+        let second = s % 60
+        if day > 0 { return "\(day)天\(hour)小时" }
+        if hour > 0 { return "\(hour)小时\(minute)分" }
+        if minute > 0 { return "\(minute)分\(second)秒" }
+        return "\(second)秒"
+    }
 }
 
 /// 单块 GPU 的状态快照，对应 nvidia-smi 的一行查询结果。
@@ -88,6 +102,18 @@ struct CustomConnection: Codable, Hashable {
     var identityFile: String? = nil   // 私钥路径，可空（用 ssh-agent / 默认密钥）
 }
 
+/// 网络收发的累计字节计数（取自远程 /proc/net/dev），用于在两次轮询间求速率。
+struct NetCounters: Sendable, Hashable {
+    let rxBytes: Int   // 累计下行字节
+    let txBytes: Int   // 累计上行字节
+}
+
+/// 一次远程抓取的完整结果：GPU 列表 + 可选的网络计数。
+struct FetchResult: Sendable {
+    let gpus: [GPUInfo]
+    let net: NetCounters?
+}
+
 /// 单台服务器的实时监控状态。
 struct HostStatus: Identifiable, Sendable {
     let serverID: UUID
@@ -96,8 +122,22 @@ struct HostStatus: Identifiable, Sendable {
     var errorMessage: String? = nil
     var isLoading: Bool = false
     var lastUpdated: Date? = nil
+    var netRxBytesPerSec: Double? = nil   // 下行速率 B/s（首次轮询无上一次样本时为 nil）
+    var netTxBytesPerSec: Double? = nil   // 上行速率 B/s
 
     var id: UUID { serverID }
+}
+
+/// 网络速率的紧凑文本格式化（1024 进制，B/s · KB/s · MB/s · GB/s）。
+enum NetFormat {
+    static func speed(_ bytesPerSec: Double) -> String {
+        let v = max(0, bytesPerSec)
+        let kb = 1024.0, mb = kb * 1024, gb = mb * 1024
+        if v >= gb { return String(format: "%.1f GB/s", v / gb) }
+        if v >= mb { return String(format: "%.1f MB/s", v / mb) }
+        if v >= kb { return String(format: "%.0f KB/s", v / kb) }
+        return String(format: "%.0f B/s", v)
+    }
 }
 
 /// 用户在设置里选择展示哪些指标。

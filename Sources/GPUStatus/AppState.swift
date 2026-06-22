@@ -44,6 +44,9 @@ final class AppState: ObservableObject {
     private let defaults = UserDefaults.standard
     private var pollingTask: Task<Void, Never>?
 
+    /// 每台服务器上一次的网络累计计数与采样时刻，用于求两次轮询间的收发速率。
+    private var prevNet: [UUID: (counters: NetCounters, at: Date)] = [:]
+
     /// 睡眠唤醒监听 token；网络可达性监听。两者在「断后恢复」时主动立即刷新，避免盯一屏陈旧/全红数据。
     private var wakeObserver: NSObjectProtocol?
     private let pathMonitor = NWPathMonitor()
@@ -203,7 +206,7 @@ final class AppState: ObservableObject {
             statusByServer[s.id, default: HostStatus(serverID: s.id, name: s.name)].isLoading = true
         }
 
-        await withTaskGroup(of: (UUID, Result<[GPUInfo], Error>).self) { group in
+        await withTaskGroup(of: (UUID, Result<FetchResult, Error>).self) { group in
             for s in targets {
                 group.addTask {
                     do { return (s.id, .success(try await GPUMonitor.fetch(server: s))) }
@@ -215,20 +218,41 @@ final class AppState: ObservableObject {
                 var s = statusByServer[id] ?? HostStatus(serverID: id, name: server.name)
                 s.isLoading = false
                 switch result {
-                case .success(let gpus):
-                    s.gpus = gpus
+                case .success(let fetched):
+                    s.gpus = fetched.gpus
                     s.errorMessage = nil
                     s.lastUpdated = Date()
+                    updateNetRate(&s, id: id, counters: fetched.net)
                 case .failure(let err):
                     if !(err is CancellationError) {
                         s.gpus = []
                         s.errorMessage = err.localizedDescription
+                        // 抓取失败：清掉速率与基线，避免在错误旁残留陈旧速度，恢复后从新样本重新起算。
+                        s.netRxBytesPerSec = nil
+                        s.netTxBytesPerSec = nil
+                        prevNet[id] = nil
                         Log.write("fetch \(server.name) failed: \(err.localizedDescription)")
                     }
                 }
                 statusByServer[id] = s
             }
         }
+    }
+
+    /// 用本次累计计数与上次样本求收发速率（B/s）；首次无样本、间隔过短或计数器回绕（重启）时
+    /// 不刷新显示值（保留上一次速率，避免闪烁），并把本次作为新基线。
+    private func updateNetRate(_ status: inout HostStatus, id: UUID, counters: NetCounters?) {
+        guard let counters else { return }
+        let now = Date()
+        defer { prevNet[id] = (counters, now) }
+
+        guard let prev = prevNet[id] else { return }
+        let dt = now.timeIntervalSince(prev.at)
+        let drx = counters.rxBytes - prev.counters.rxBytes
+        let dtx = counters.txBytes - prev.counters.txBytes
+        guard dt > 0.2, drx >= 0, dtx >= 0 else { return }
+        status.netRxBytesPerSec = Double(drx) / dt
+        status.netTxBytesPerSec = Double(dtx) / dt
     }
 
     // MARK: - Launch at login
@@ -301,5 +325,6 @@ final class AppState: ObservableObject {
     private func pruneStatuses() {
         let keep = Set(servers.map(\.id))
         statusByServer = statusByServer.filter { keep.contains($0.key) }
+        prevNet = prevNet.filter { keep.contains($0.key) }
     }
 }

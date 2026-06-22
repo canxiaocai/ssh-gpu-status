@@ -135,9 +135,31 @@ struct HostSectionView: View {
                 Text("· \(status.gpus.count)× \(model)")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Spacer()
+            Spacer(minLength: 8)
+            netSpeed
             statusIndicator
         }
+    }
+
+    /// 服务器整机收发速率（↓ 下行 / ↑ 上行），与服务器信息、时间同一行展示。
+    @ViewBuilder
+    private var netSpeed: some View {
+        if status.netRxBytesPerSec != nil || status.netTxBytesPerSec != nil {
+            HStack(spacing: 8) {
+                speedItem(systemImage: "arrow.down", value: status.netRxBytesPerSec)
+                speedItem(systemImage: "arrow.up", value: status.netTxBytesPerSec)
+            }
+            .fixedSize()
+        }
+    }
+
+    private func speedItem(systemImage: String, value: Double?) -> some View {
+        HStack(spacing: 2) {
+            Image(systemName: systemImage).font(.system(size: 9, weight: .semibold))
+            Text(NetFormat.speed(value ?? 0))
+                .font(.caption2).monospacedDigit()
+        }
+        .foregroundStyle(.secondary)
     }
 
     @ViewBuilder
@@ -341,6 +363,13 @@ struct ProcessPopover: View {
                 }
                 MetricBar(fraction: Double(p.memoryUsed) / max(1, Double(gpu.memoryTotal)), tint: Theme.green)
                     .frame(width: 160, height: 4)
+                if let runtime = p.runtimeText {
+                    HStack(spacing: 3) {
+                        Image(systemName: "clock").font(.system(size: 9))
+                        Text("已运行 \(runtime)").font(.caption2).monospacedDigit()
+                    }
+                    .foregroundStyle(.tertiary)
+                }
             }
             Spacer(minLength: 10)
             VStack(alignment: .trailing, spacing: 3) {
