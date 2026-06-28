@@ -1,5 +1,16 @@
+# macOS (SwiftPM)
 .build/
 build/
 .DS_Store
 *.xcodeproj
 .swiftpm/
+
+# Windows (.NET)
+[Bb]in/
+[Oo]bj/
+dist/
+*.user
+.vs/
+# dev.ps1 把热刷新用的单文件 exe 复制到 windows/，不提交
+windows/GpuStatus.exe
+windows/GpuStatus.pdb

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+
+    <AssemblyName>GpuStatus</AssemblyName>
+    <RootNamespace>GpuStatus</RootNamespace>
+    <Product>Server GPU Status</Product>
+    <Authors>cxc</Authors>
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+
+    <!-- 托盘程序：不弹控制台窗口 -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- exe 文件图标（资源管理器/任务栏显示的应用 logo） -->
+    <ApplicationIcon>logos\AppIcon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+</Project>
